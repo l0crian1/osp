@@ -52,7 +52,7 @@ WORKDIR /src/wolfssl
 
 RUN test -x ./configure || (echo "Missing wolfSSL sources. Provide FIPS bundle at wireguard-go/deps/wolfssl-fips/" && exit 1)
 
-RUN ./configure --enable-fips=v5 --enable-sp="yes, 256" \
+RUN ./configure --enable-sp="yes, 256" \
     && make -j"$(nproc)" \
     && ./wolfcrypt/test/testwolfcrypt \
     && ./fips-hash.sh \
@@ -77,6 +77,10 @@ RUN git clone "${WIREGUARD_GO_REPO}" /src/wireguard-go \
 #
 # For a repeatable Docker build we clone go-wolfssl locally and use a replace.
 RUN git clone "${GO_WOLFSSL_REPO}" /src/go-wolfssl
+
+# Keep go-wolfssl options in sync with the wolfSSL feature set we built.
+# See: https://github.com/wolfSSL/go-wolfssl
+RUN cd /src/go-wolfssl && ./generateOptions.sh /src/wolfssl
 
 # Ensure cgo can find wolfSSL headers/libs from /usr/local
 ENV CGO_ENABLED=1 \

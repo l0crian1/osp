@@ -10,3 +10,6 @@
 [submodule "micropython-modules/micropython-wolfssl/wolfssl"]
 	path = micropython-modules/micropython-wolfssl/wolfssl
 	url = https://github.com/wolfSSL/wolfssl.git
+[submodule "wireguard-go/wireguard-go"]
+	path = wireguard-go/wireguard-go
+	url = https://github.com/WireGuard/wireguard-go.git
