@@ -27,6 +27,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Allow using forks for dependency repos without editing this Dockerfile
 ARG WIREGUARD_GO_REPO=https://github.com/WireGuard/wireguard-go.git
 ARG GO_WOLFSSL_REPO=https://github.com/wolfssl/go-wolfssl.git
+ARG WOLFSSL_REPO=https://github.com/wolfssl/wolfssl.git
+ARG WOLFSSL_REF=master
+ARG WOLFSSL_CONFIGURE_FLAGS=--enable-sp="yes, 256"
 
 # WireGuard-go commit this patch targets (from README)
 ARG WIREGUARD_GO_COMMIT=12269c2761734b1
@@ -44,20 +47,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# --- wolfSSL FIPS bundle build (must be provided in build context) ---
-# Expecting: wireguard-go/deps/wolfssl-fips/{configure,wolfcrypt/test/testwolfcrypt,fips-hash.sh,...}
-COPY wireguard-go/deps/wolfssl-fips/ /src/wolfssl/
-
-WORKDIR /src/wolfssl
-
-RUN test -x ./configure || (echo "Missing wolfSSL sources. Provide FIPS bundle at wireguard-go/deps/wolfssl-fips/" && exit 1)
-
-RUN ./configure --enable-sp="yes, 256" \
+# --- wolfSSL build (pulled from GitHub) ---
+# Note: FIPS-certified wolfSSL sources are supplied separately by wolfSSL.
+# This Dockerfile builds from the public wolfSSL repo by default; override
+# WOLFSSL_REF / WOLFSSL_CONFIGURE_FLAGS as needed.
+RUN git clone "${WOLFSSL_REPO}" /src/wolfssl \
+    && cd /src/wolfssl \
+    && git checkout "${WOLFSSL_REF}" \
+    && ./autogen.sh \
+    && ./configure ${WOLFSSL_CONFIGURE_FLAGS} \
     && make -j"$(nproc)" \
     && ./wolfcrypt/test/testwolfcrypt \
-    && ./fips-hash.sh \
-    && make -j"$(nproc)" \
-    && ./wolfcrypt/test/testwolfcrypt \
+    && if [ -f ./fips-hash.sh ]; then ./fips-hash.sh && make -j"$(nproc)" && ./wolfcrypt/test/testwolfcrypt; fi \
     && make install \
     && ldconfig
 

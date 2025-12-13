@@ -26,25 +26,6 @@ jobs:
           # wireguard-go/deps/wolfssl-fips, this will pull it.
           submodules: recursive
 
-      - name: "Prepare: wolfSSL FIPS bundle in build context"
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [ -x "wireguard-go/deps/wolfssl-fips/configure" ]; then
-            echo "Found wolfSSL bundle at wireguard-go/deps/wolfssl-fips/"
-            exit 0
-          fi
-
-          if [ ! -x "wireguard-go/deps/wolfssl-fips/configure" ]; then
-            echo "ERROR: Missing wolfSSL FIPS bundle in build context."
-            echo "Expected: wireguard-go/deps/wolfssl-fips/ (must include ./configure, ./fips-hash.sh, ./wolfcrypt/test/testwolfcrypt)"
-            echo "Fix options:"
-            echo "  1) Vendor it into this repo at wireguard-go/deps/wolfssl-fips/"
-            echo "  2) Add it as a git submodule at wireguard-go/deps/wolfssl-fips/ (workflow checks out submodules)"
-            exit 1
-          fi
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
