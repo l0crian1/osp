@@ -124,6 +124,6 @@ COPY --from=builder /src/wireguard-go/wolfguard-go /usr/local/bin/wolfguard-go
 ENV LD_LIBRARY_PATH="/usr/local/lib"
 
 ENTRYPOINT ["/usr/local/bin/wolfguard-go"]
-CMD ["wg0"]
+CMD ["-f", "wg0"]
 
 
