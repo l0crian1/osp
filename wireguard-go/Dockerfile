@@ -53,7 +53,7 @@ RUN set -eux \
     && git clone --depth=1 "${WOLFSSL_REPO}" /src/wolfssl \
     && cd /src/wolfssl \
     && ./autogen.sh \
-    && ./configure --enable-fips=v5 --enable-sp="yes, 256" \
+    && ./configure --enable-sp="yes, 256" \
     && make -j"$(nproc)" \
     && make install \
     && ldconfig
@@ -110,6 +110,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    wireguard-tools \
+    iproute2 \
+    socat \
     && rm -rf /var/lib/apt/lists/*
 
 # wolfSSL shared library + loader cache
