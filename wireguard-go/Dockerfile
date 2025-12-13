@@ -57,11 +57,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # This Dockerfile builds from the public wolfSSL repo by default; override
 # WOLFSSL_REF / WOLFSSL_CONFIGURE_FLAGS as needed.
 RUN set -eux \
-    && git clone "${WOLFSSL_REPO}" /src/wolfssl \
+    && git clone --depth 1 --branch "${WOLFSSL_REF}" "${WOLFSSL_REPO}" /src/wolfssl \
+    && test -d /src/wolfssl
+
+RUN set -eux \
     && cd /src/wolfssl \
-    && git checkout "${WOLFSSL_REF}" \
-    && ./autogen.sh \
-    && ./configure ${WOLFSSL_CONFIGURE_FLAGS} || (echo "==== wolfSSL configure failed; showing config.log ====" && (test -f config.log && tail -n 200 config.log || true) && exit 1) \
+    && ./autogen.sh
+
+RUN set -eux \
+    && cd /src/wolfssl \
+    && echo "wolfSSL configure flags: ${WOLFSSL_CONFIGURE_FLAGS}" \
+    && ./configure ${WOLFSSL_CONFIGURE_FLAGS} || (echo "==== wolfSSL configure failed; showing config.log ====" && (test -f config.log && tail -n 200 config.log || true) && exit 1)
+
+RUN set -eux \
+    && cd /src/wolfssl \
     && make -j"$(nproc)" \
     && ./wolfcrypt/test/testwolfcrypt \
     && if [ -f ./fips-hash.sh ]; then ./fips-hash.sh && make -j"$(nproc)" && ./wolfcrypt/test/testwolfcrypt; fi \
