@@ -121,6 +121,8 @@ COPY --from=builder /etc/ld.so.conf.d /etc/ld.so.conf.d
 # wolfguard-go binary
 COPY --from=builder /src/wireguard-go/wolfguard-go /usr/local/bin/wolfguard-go
 
+# Force userspace even when the kernel WireGuard module exists (otherwise wireguard-go exits).
+ENV WG_I_PREFER_BUGGY_USERSPACE_TO_POLISHED_KMOD=1
 ENV LD_LIBRARY_PATH="/usr/local/lib"
 
 ENTRYPOINT ["/usr/local/bin/wolfguard-go"]

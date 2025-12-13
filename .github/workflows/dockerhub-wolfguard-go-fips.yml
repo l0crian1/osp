@@ -2,7 +2,7 @@ name: Build & Push wolfguard-go (FIPS) to Docker Hub
 
 on:
   push:
-    branches: ["main"]
+    branches: ["master"]
     tags: ["v*"]
   workflow_dispatch: {}
 
