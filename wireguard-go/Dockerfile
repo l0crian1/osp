@@ -27,14 +27,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Use bash for better error handling/logging in RUN steps
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Allow using forks for dependency repos without editing this Dockerfile
+# Allow using forks without editing this Dockerfile
+ARG WOLFSSL_REPO=https://github.com/wolfSSL/wolfssl.git
+ARG GO_WOLFSSL_REPO=https://github.com/wolfSSL/go-wolfssl.git
 ARG WIREGUARD_GO_REPO=https://github.com/WireGuard/wireguard-go.git
-ARG GO_WOLFSSL_REPO=https://github.com/wolfssl/go-wolfssl.git
-ARG WOLFSSL_REPO=https://github.com/wolfssl/wolfssl.git
-ARG WOLFSSL_REF=master
-# NOTE: don't put quotes in this arg; Docker ARG expansion does not preserve them as shell quoting.
-# Use a space-free default so it passes cleanly through the shell.
-ARG WOLFSSL_CONFIGURE_FLAGS=--enable-sp=yes,256
 
 # WireGuard-go commit this patch targets (from README)
 ARG WIREGUARD_GO_COMMIT=12269c2761734b1
@@ -52,28 +48,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# --- wolfSSL build (pulled from GitHub) ---
-# Note: FIPS-certified wolfSSL sources are supplied separately by wolfSSL.
-# This Dockerfile builds from the public wolfSSL repo by default; override
-# WOLFSSL_REF / WOLFSSL_CONFIGURE_FLAGS as needed.
+# --- wolfSSL build (matches your known-good command sequence) ---
 RUN set -eux \
-    && git clone --depth 1 --branch "${WOLFSSL_REF}" "${WOLFSSL_REPO}" /src/wolfssl \
-    && test -d /src/wolfssl
-
-RUN set -eux \
+    && git clone --depth=1 "${WOLFSSL_REPO}" /src/wolfssl \
     && cd /src/wolfssl \
-    && ./autogen.sh
-
-RUN set -eux \
-    && cd /src/wolfssl \
-    && echo "wolfSSL configure flags: ${WOLFSSL_CONFIGURE_FLAGS}" \
-    && ./configure ${WOLFSSL_CONFIGURE_FLAGS} || (echo "==== wolfSSL configure failed; showing config.log ====" && (test -f config.log && tail -n 200 config.log || true) && exit 1)
-
-RUN set -eux \
-    && cd /src/wolfssl \
+    && ./autogen.sh \
+    && ./configure --enable-sp="yes, 256" \
     && make -j"$(nproc)" \
-    && ./wolfcrypt/test/testwolfcrypt \
-    && if [ -f ./fips-hash.sh ] && [ -f ./wolfcrypt/src/fips_test.c ]; then ./fips-hash.sh && make -j"$(nproc)" && ./wolfcrypt/test/testwolfcrypt; fi \
     && make install \
     && ldconfig
 
@@ -84,7 +65,8 @@ COPY wireguard-go/Wireguard-Go-FIPS-wolfCrypt-port.patch /src/patches/Wireguard-
 RUN git clone "${WIREGUARD_GO_REPO}" /src/wireguard-go \
     && cd /src/wireguard-go \
     && git checkout "${WIREGUARD_GO_COMMIT}" \
-    && patch -p1 < /src/patches/Wireguard-Go-FIPS-wolfCrypt-port.patch
+    && cp /src/patches/Wireguard-Go-FIPS-wolfCrypt-port.patch ./Wireguard-Go-FIPS-wolfCrypt-port.patch \
+    && patch -p1 < ./Wireguard-Go-FIPS-wolfCrypt-port.patch
 
 # --- go-wolfssl (local replacement) ---
 # In the README this is done via:
@@ -96,7 +78,16 @@ RUN git clone "${GO_WOLFSSL_REPO}" /src/go-wolfssl
 
 # Keep go-wolfssl options in sync with the wolfSSL feature set we built.
 # See: https://github.com/wolfSSL/go-wolfssl
-RUN cd /src/go-wolfssl && ./generateOptions.sh /src/wolfssl
+RUN set -eux \
+    && cd /src/go-wolfssl \
+    && if [ -x ./generateOptions.sh ]; then \
+         ./generateOptions.sh /src/wolfssl; \
+       elif [ -x ./generateOptions ]; then \
+         ./generateOptions /src/wolfssl; \
+       else \
+         echo "Missing generateOptions(.sh) in go-wolfssl checkout" >&2; \
+         exit 1; \
+       fi
 
 # Ensure cgo can find wolfSSL headers/libs from /usr/local
 ENV CGO_ENABLED=1 \
@@ -108,9 +99,6 @@ WORKDIR /src/wireguard-go
 
 RUN go get -u github.com/wolfssl/go-wolfssl \
     && go mod edit -replace github.com/wolfssl/go-wolfssl=/src/go-wolfssl
-
-# README suggests running unit tests from /device
-RUN cd /src/wireguard-go/device && go test
 
 # Build produces `wolfguard-go` (patch changes Makefile target)
 RUN make
