@@ -73,7 +73,7 @@ RUN set -eux \
     && cd /src/wolfssl \
     && make -j"$(nproc)" \
     && ./wolfcrypt/test/testwolfcrypt \
-    && if [ -f ./fips-hash.sh ]; then ./fips-hash.sh && make -j"$(nproc)" && ./wolfcrypt/test/testwolfcrypt; fi \
+    && if [ -f ./fips-hash.sh ] && [ -f ./wolfcrypt/src/fips_test.c ]; then ./fips-hash.sh && make -j"$(nproc)" && ./wolfcrypt/test/testwolfcrypt; fi \
     && make install \
     && ldconfig
 
