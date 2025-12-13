@@ -22,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preflight: ensure wolfSSL FIPS bundle exists in build context
+      - name: "Preflight: ensure wolfSSL FIPS bundle exists in build context"
         shell: bash
         run: |
           if [ ! -x "wireguard-go/deps/wolfssl-fips/configure" ]; then
