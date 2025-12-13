@@ -24,12 +24,17 @@ FROM golang:1.22-bookworm AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# Use bash for better error handling/logging in RUN steps
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # Allow using forks for dependency repos without editing this Dockerfile
 ARG WIREGUARD_GO_REPO=https://github.com/WireGuard/wireguard-go.git
 ARG GO_WOLFSSL_REPO=https://github.com/wolfssl/go-wolfssl.git
 ARG WOLFSSL_REPO=https://github.com/wolfssl/wolfssl.git
 ARG WOLFSSL_REF=master
-ARG WOLFSSL_CONFIGURE_FLAGS=--enable-sp="yes, 256"
+# NOTE: don't put quotes in this arg; Docker ARG expansion does not preserve them as shell quoting.
+# Use a space-free default so it passes cleanly through the shell.
+ARG WOLFSSL_CONFIGURE_FLAGS=--enable-sp=yes,256
 
 # WireGuard-go commit this patch targets (from README)
 ARG WIREGUARD_GO_COMMIT=12269c2761734b1
@@ -51,11 +56,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Note: FIPS-certified wolfSSL sources are supplied separately by wolfSSL.
 # This Dockerfile builds from the public wolfSSL repo by default; override
 # WOLFSSL_REF / WOLFSSL_CONFIGURE_FLAGS as needed.
-RUN git clone "${WOLFSSL_REPO}" /src/wolfssl \
+RUN set -eux \
+    && git clone "${WOLFSSL_REPO}" /src/wolfssl \
     && cd /src/wolfssl \
     && git checkout "${WOLFSSL_REF}" \
     && ./autogen.sh \
-    && ./configure ${WOLFSSL_CONFIGURE_FLAGS} \
+    && ./configure ${WOLFSSL_CONFIGURE_FLAGS} || (echo "==== wolfSSL configure failed; showing config.log ====" && (test -f config.log && tail -n 200 config.log || true) && exit 1) \
     && make -j"$(nproc)" \
     && ./wolfcrypt/test/testwolfcrypt \
     && if [ -f ./fips-hash.sh ]; then ./fips-hash.sh && make -j"$(nproc)" && ./wolfcrypt/test/testwolfcrypt; fi \
