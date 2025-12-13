@@ -1,0 +1,69 @@
+name: Build & Push wolfguard-go (FIPS) to Docker Hub
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  workflow_dispatch: {}
+
+env:
+  # Default image name; override by setting a repository variable named DOCKERHUB_IMAGE (optional)
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/wolfguard-go-fips
+  DOCKERFILE_PATH: wireguard-go/Dockerfile
+  BUILD_CONTEXT: .
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preflight: ensure wolfSSL FIPS bundle exists in build context
+        shell: bash
+        run: |
+          if [ ! -x "wireguard-go/deps/wolfssl-fips/configure" ]; then
+            echo "ERROR: Missing wolfSSL FIPS bundle in build context."
+            echo "Expected: wireguard-go/deps/wolfssl-fips/ (must include ./configure, ./fips-hash.sh, ./wolfcrypt/test/testwolfcrypt)"
+            echo "This workflow cannot build a FIPS-enabled image without the FIPS bundle present."
+            exit 1
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker metadata (tags/labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=ref,event=tag
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.BUILD_CONTEXT }}
+          file: ${{ env.DOCKERFILE_PATH }}
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+
