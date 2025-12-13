@@ -53,7 +53,7 @@ RUN set -eux \
     && git clone --depth=1 "${WOLFSSL_REPO}" /src/wolfssl \
     && cd /src/wolfssl \
     && ./autogen.sh \
-    && ./configure --enable-sp="yes, 256" \
+    && ./configure --enable-fips=v5 --enable-sp="yes, 256" \
     && make -j"$(nproc)" \
     && make install \
     && ldconfig
