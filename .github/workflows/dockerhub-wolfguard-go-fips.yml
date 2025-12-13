@@ -26,18 +26,6 @@ jobs:
           # wireguard-go/deps/wolfssl-fips, this will pull it.
           submodules: recursive
 
-      # Optional: checkout the wolfSSL FIPS bundle from a separate private GitHub repo.
-      # Set these secrets to use this mode:
-      # - WOLFSSL_FIPS_REPO  (example: "yourOrg/wolfssl-fips-bundle")
-      # - WOLFSSL_FIPS_TOKEN (PAT with read access to that repo)
-      - name: Checkout wolfSSL FIPS bundle repo (optional)
-        if: ${{ secrets.WOLFSSL_FIPS_REPO != '' && secrets.WOLFSSL_FIPS_TOKEN != '' }}
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ secrets.WOLFSSL_FIPS_REPO }}
-          token: ${{ secrets.WOLFSSL_FIPS_TOKEN }}
-          path: wireguard-go/deps/wolfssl-fips
-
       - name: "Prepare: wolfSSL FIPS bundle in build context"
         shell: bash
         run: |
@@ -54,7 +42,6 @@ jobs:
             echo "Fix options:"
             echo "  1) Vendor it into this repo at wireguard-go/deps/wolfssl-fips/"
             echo "  2) Add it as a git submodule at wireguard-go/deps/wolfssl-fips/ (workflow checks out submodules)"
-            echo "  3) Set secrets WOLFSSL_FIPS_REPO + WOLFSSL_FIPS_TOKEN so the workflow can checkout a private repo into that path"
             exit 1
           fi
 
