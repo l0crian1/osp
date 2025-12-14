@@ -53,8 +53,12 @@ RUN set -eux \
     && git clone --depth=1 "${WOLFSSL_REPO}" /src/wolfssl \
     && cd /src/wolfssl \
     && ./autogen.sh \
-    && ./configure --enable-fips --enable-sp="yes, 256" \
+    && ./configure --enable-fips=v5 --enable-sp="yes, 256" \
     && make -j"$(nproc)" \
+    && ./wolfcrypt/test/testwolfcrypt \
+    && ./fips-hash.sh \
+    && make -j"$(nproc)" \
+    && ./wolfcrypt/test/testwolfcrypt \
     && make install \
     && ldconfig
 
